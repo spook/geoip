@@ -37,11 +37,11 @@ Simply copy the `geoip` script to someplace in your $PATH.
 Make sure it's executable.
 
 Then, you'll need a copy of MaxMind's GeoIP database.
-There's various databases of varying precision,;some are free and some cost.
+There's various databases of varying precision; some are free and some cost.
 See https://dev.maxmind.com/geoip/legacy/downloadable/ for databases.
 
-Obtain a suitable database and place it somewhere on your system;
-I suggest `/usr/local/share/GeoIP/`.  Then edit the script to make 
-it open the database file (see line 7).
+Obtain a suitable database and place it on your system;
+I suggest `/usr/local/share/GeoIP/`.  Then edit the `geoip` script to make 
+it open that particular database file (see line 7).
 
 That's it... enjoy!
