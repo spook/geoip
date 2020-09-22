@@ -1,0 +1,38 @@
+#!/usr/bin/perl -w
+use v5.10;
+use Geo::IP;
+my $verbose = @ARGV && $ARGV[0] eq '-v' ? shift @ARGV : 0;  # Use GetOpt later if more than this
+die "*** Usage: $0 [-v] <ip-address>\n" unless @ARGV;
+
+my $gi = Geo::IP->open("/usr/local/share/GeoIP/GeoLiteCity.dat", GEOIP_STANDARD);
+my $record = $gi->record_by_addr($ARGV[0]);
+die "Non-geographic IP address\n" unless $record;
+
+if ($verbose) {
+    say "Continent Code: ", $record->continent_code || q{--};
+    say "  Country Code: ", $record->country_code   || q{--};
+    say "Country Code 3: ", $record->country_code3  || q{--};
+    say "  Country Name: ", $record->country_name   || q{--};
+    say "        Region: ", $record->region         || q{--};
+    say "   Region Name: ", $record->region_name    || q{--};
+    say "    Metro Code: ", $record->metro_code     || q{--};
+    say "          City: ", $record->city           || q{--};
+    say "   Postal Code: ", $record->postal_code    || q{--};
+    say "     Time Zone: ", $record->time_zone      || q{--};
+    say "     Area Code: ", $record->area_code      || q{--};
+    say "      Location: (", $record->latitude      || q{--}, 
+                             ",", 
+                             $record->longitude     || q{--},
+                             ")";
+    exit 0;
+}
+
+# Compact output
+say join("|",
+    $record->continent_code || q{}, 
+    $record->country_code   || q{}, $record->country_code3 || q{}, $record->country_name || q{},
+    $record->region         || q{}, $record->region_name   || q{},
+    $record->metro_code     || q{}, $record->city          || q{}, $record->postal_code  || q{}, 
+    $record->time_zone      || q{}, $record->area_code     || q{},
+    $record->latitude       || q{}, $record->longitude     || q{},
+    );
