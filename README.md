@@ -15,7 +15,7 @@ Here it is, I hope it saves you a few hundred keystrokes!
     $ geoip 1.1.1.1
     OC|AU|AUS|Australia|07|Victoria||Research|3095|Australia/Melbourne||-37.7000|145.1833
 
-    $ geopi -v 1.1.1.1
+    $ geoip -v 1.1.1.1
       Country Code: AU
     Country Code 3: AUS
       Country Name: Australia
@@ -44,4 +44,4 @@ Obtain a suitable database and place it somewhere on your system;
 I suggest `/usr/local/share/GeoIP/`.  Then edit the script to make 
 it open the database file (see line 7).
 
-That's it.. enjoy!
+That's it... enjoy!
