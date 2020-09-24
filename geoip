@@ -1,14 +1,30 @@
 #!/usr/bin/perl -w
 use v5.10;
 use Geo::IP;
-my $verbose = @ARGV && $ARGV[0] eq '-v' ? shift @ARGV : 0;  # Use GetOpt later if more than this
-die "*** Usage: $0 [-v] <ip-address>\n" unless @ARGV;
+use Getopt::Long qw(:config no_ignore_case bundling);
+use Pod::Usage;
 
-my $gi = Geo::IP->open("/usr/local/share/GeoIP/GeoLiteCity.dat", GEOIP_STANDARD);
+# Parse command line options and args
+my $opts = {};
+GetOptions( $opts,
+            "geoip-data|g=s",
+            "help|h",
+            "verbose|v",
+    ) or pod2usage(-verbose => 0);
+
+if ($opts->{help} || !@ARGV) {
+    pod2usage(-verbose => $opts->{verbose} || 0);
+}
+
+# Open the d/b and do the lookup
+my $geodat = $opts->{'geoip-data'} || "/usr/share/GeoIP/GeoIPCity.dat";
+my $gi = Geo::IP->open($geodat, GEOIP_STANDARD);
+die "*** Cannot open GeoIP data at $geodat\n" unless $gi;
 my $record = $gi->record_by_addr($ARGV[0]);
 die "Non-geographic IP address\n" unless $record;
 
-if ($verbose) {
+# Show results
+if ($opts->{verbose}) {
     say "Continent Code: ", $record->continent_code || q{--};
     say "  Country Code: ", $record->country_code   || q{--};
     say "Country Code 3: ", $record->country_code3  || q{--};
@@ -20,10 +36,8 @@ if ($verbose) {
     say "   Postal Code: ", $record->postal_code    || q{--};
     say "     Time Zone: ", $record->time_zone      || q{--};
     say "     Area Code: ", $record->area_code      || q{--};
-    say "      Location: (", $record->latitude      || q{--}, 
-                             ",", 
-                             $record->longitude     || q{--},
-                             ")";
+    say "      Location: (", $record->latitude      || q{--}, ",", 
+                             $record->longitude     || q{--}, ")";
     exit 0;
 }
 
@@ -36,3 +50,60 @@ say join("|",
     $record->time_zone      || q{}, $record->area_code     || q{},
     $record->latitude       || q{}, $record->longitude     || q{},
     );
+
+exit 0;
+
+__END__
+
+=head1 NAME
+
+geoip - Lookup geolocation information for an IP address
+
+=head1 SYNOPSIS
+
+ geoip [options] IPADDR 
+
+ Options:
+  -g  --geoip-data FILE   Location of GeoIP database file.
+  -h  --help              Usage summary.
+  -v  --verbose           Show more output.  Can use twice for even more.
+
+ IPADDR is a numeric IPv4 address.
+ The GeoIP data file defaults to /usr/share/GeoIP/GeoIPCity.dat
+
+=head1 ARGUMENTS
+
+=over 4
+
+=item B<IPADDR>
+
+A single numeric IPv4 address to lookup.  Required.
+
+=back
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<--geoip-data, -g GEOIP-DATABASE-FILE>
+
+Location of the GeoIP database file to use for IP address lookups.
+Default is /usr/share/GeoIP/GeoIPCity.dat .
+
+=item B<--help, -h>
+
+Print a brief help message and exit.
+
+=item B<--verbose, -v>
+
+Provide a labeled tabular output for all values.
+Without this option, a compat format is used that puts all values on one line.
+
+=back
+
+=head1 DESCRIPTION
+
+This utility performs a geographic IP address lookup, returning
+the location, if available, for the given IP address.
+
+=cut
