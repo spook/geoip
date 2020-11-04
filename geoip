@@ -98,7 +98,7 @@ geoip - Lookup geolocation information for an IP address
  Options:
   -g  --geoip-data FILE   Location of GeoIP database file.
   -h  --help              Usage summary.
-  -v  --verbose           Show more output.  Can use twice for even more.
+  -v  --verbose           Show labled output.
 
  IPADDR is a numeric IPv4 address.
  The GeoIP data file defaults to /usr/share/GeoIP/GeoIP-City.mmdb
