@@ -1,55 +1,87 @@
 #!/usr/bin/perl -w
+use strict;
 use v5.10;
-use Geo::IP;
 use Getopt::Long qw(:config no_ignore_case bundling);
 use Pod::Usage;
 
+use constant DFL_GEODB1 => "/usr/share/GeoIP/GeoIPCity.dat";
+use constant DFL_GEODB2 => "/usr/share/GeoIP/GeoIP2-City.mmdb";
+
 # Parse command line options and args
 my $opts = {};
-GetOptions( $opts,
-            "geoip-data|g=s",
-            "help|h",
-            "verbose|v",
-    ) or pod2usage(-verbose => 0);
-
+GetOptions($opts, "geoip-data|g=s", "help|h", "verbose|v",) or pod2usage(-verbose => 0);
 if ($opts->{help} || !@ARGV) {
     pod2usage(-verbose => $opts->{verbose} || 0);
 }
 
 # Open the d/b and do the lookup
-my $geodat = $opts->{'geoip-data'} || "/usr/share/GeoIP/GeoIPCity.dat";
-my $gi = Geo::IP->open($geodat, GEOIP_STANDARD);
-die "*** Cannot open GeoIP data at $geodat\n" unless $gi;
-my $record = $gi->record_by_addr($ARGV[0]);
-die "Non-geographic IP address\n" unless $record;
+my %g      = ();                                                                   # results go here
+my $blank  = $opts->{verbose} ? q{--} : q{};
+my $geodat = $opts->{'geoip-data'} || (-r DFL_GEODB2 ? DFL_GEODB2 : DFL_GEODB1);
+if ($geodat =~ m{\.mmdb$}i) {
+
+    # V2 format database
+    require GeoIP2::Database::Reader;
+    my $reader = GeoIP2::Database::Reader->new(file => $geodat);
+    my $georec;
+    eval {
+        $georec = $reader->city(ip => $ARGV[0]);
+    };
+    if ($@) {
+        my $err = (split(/\n/, $@, 2))[0]; # first line only
+        $err =~ s{ at \S+ line \d+\.}{};
+        die "*** $err\n";
+    }
+
+    $g{kk} = $georec->continent()->code()                     || $blank;
+    $g{cc} = $georec->country()->iso_code()                   || $blank;
+    $g{cn} = $georec->country()->name()                       || $blank;
+    $g{rg} = $georec->most_specific_subdivision()->iso_code() || $blank;
+    $g{rn} = $georec->most_specific_subdivision()->name()     || $blank;
+    $g{mc} = $georec->location()->metro_code()                || $blank;
+    $g{ct} = $georec->city()->name()                          || $blank;
+    $g{tz} = $georec->location()->time_zone()                 || $blank;
+    $g{la} = $georec->location()->latitude()                  || $blank;
+    $g{ln} = $georec->location()->longitude()                 || $blank;
+}
+else {
+    # V1 format database
+    require Geo::IP;
+    my $gi = Geo::IP->open($geodat, Geo::IP->GEOIP_STANDARD);
+    die "*** Cannot open GeoIP data at $geodat\n" unless $gi;
+    my $record = $gi->record_by_addr($ARGV[0]);
+    die "Non-geographic IP address or data error\n" unless $record;
+    $g{kk} = $record->continent_code || $blank;
+    $g{cc} = $record->country_code   || $blank;
+    $g{cn} = $record->country_name   || $blank;
+    $g{rg} = $record->region         || $blank;
+    $g{rn} = $record->region_name    || $blank;
+    $g{mc} = $record->metro_code     || $blank;
+    $g{ct} = $record->city           || $blank;
+    $g{tz} = $record->time_zone      || $blank;
+    $g{la} = $record->latitude       || $blank;
+    $g{ln} = $record->longitude      || $blank;
+}
 
 # Show results
 if ($opts->{verbose}) {
-    say "Continent Code: ", $record->continent_code || q{--};
-    say "  Country Code: ", $record->country_code   || q{--};
-    say "Country Code 3: ", $record->country_code3  || q{--};
-    say "  Country Name: ", $record->country_name   || q{--};
-    say "        Region: ", $record->region         || q{--};
-    say "   Region Name: ", $record->region_name    || q{--};
-    say "    Metro Code: ", $record->metro_code     || q{--};
-    say "          City: ", $record->city           || q{--};
-    say "   Postal Code: ", $record->postal_code    || q{--};
-    say "     Time Zone: ", $record->time_zone      || q{--};
-    say "     Area Code: ", $record->area_code      || q{--};
-    say "      Location: (", $record->latitude      || q{--}, ",", 
-                             $record->longitude     || q{--}, ")";
-    exit 0;
-}
 
-# Compact output
-say join("|",
-    $record->continent_code || q{}, 
-    $record->country_code   || q{}, $record->country_code3 || q{}, $record->country_name || q{},
-    $record->region         || q{}, $record->region_name   || q{},
-    $record->metro_code     || q{}, $record->city          || q{}, $record->postal_code  || q{}, 
-    $record->time_zone      || q{}, $record->area_code     || q{},
-    $record->latitude       || q{}, $record->longitude     || q{},
-    );
+    # Verbose output
+    say "Continent Code: $g{kk}";
+    say "  Country Code: $g{cc}";
+    say "  Country Name: $g{cn}";
+    say "        Region: $g{rg}";
+    say "   Region Name: $g{rn}";
+    say "    Metro Code: $g{mc}";
+    say "          City: $g{ct}";
+    say "     Time Zone: $g{tz}";
+    say "      Location: ($g{la},$g{ln})";
+    say "GeoIP Database: $geodat";
+}
+else {
+    # Compact output
+    say "$g{kk}|$g{cc}|$g{cn}|$g{rg}|$g{rn}|$g{mc}|$g{ct}|$g{tz}|$g{la}|$g{ln}";
+}
 
 exit 0;
 
@@ -69,7 +101,8 @@ geoip - Lookup geolocation information for an IP address
   -v  --verbose           Show more output.  Can use twice for even more.
 
  IPADDR is a numeric IPv4 address.
- The GeoIP data file defaults to /usr/share/GeoIP/GeoIPCity.dat
+ The GeoIP data file defaults to /usr/share/GeoIP/GeoIP-City.mmdb
+ if it exists, else /usr/share/GeoIP/GeoIPCity.dat .
 
 =head1 ARGUMENTS
 
@@ -88,7 +121,9 @@ A single numeric IPv4 address to lookup.  Required.
 =item B<--geoip-data, -g GEOIP-DATABASE-FILE>
 
 Location of the GeoIP database file to use for IP address lookups.
-Default is /usr/share/GeoIP/GeoIPCity.dat .
+If the filename ends in .mmdb it's presumed to be v2 format, else v1.
+Default is the v2 format /usr/share/GeoIP/GeoIP-City.mmdb, if it
+exists, else the v1 format /usr/share/GeoIP/GeoIPCity.dat .
 
 =item B<--help, -h>
 
